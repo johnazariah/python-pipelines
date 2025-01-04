@@ -1,146 +1,211 @@
 
-# Documentation for Pipeline Classes and Methods
+# Pipeline Framework Documentation
 
 ## Overview
-This code defines a framework for building pipelines where data passes through multiple processing stages. Each stage transforms the input into an iterable output, and stages are composed to form a complete pipeline. The key components include:
-
-1. **PipelineStage**: Abstract base class for a single stage in the pipeline.
-2. **IdentityStage**: A concrete implementation of `PipelineStage` that returns its input unchanged.
-3. **PipelineBase**: Abstract base class for a sequence of stages forming a pipeline.
-4. **InMemoryPipeline**: A concrete implementation of `PipelineBase` that processes the pipeline in memory.
+This framework provides a modular and extensible pipeline structure for transforming data through a series of stages. Each stage is responsible for producing, transforming, and consuming data as needed. The framework includes base classes for pipelines and stages, along with contextual processing capabilities.
 
 ---
 
-## Class Details
+## Modules
 
-### `PipelineStage`
-**Definition**:
+### **PipelineStage**
+A generic class representing a single stage in the pipeline. This class provides flexibility to define various types of stages such as producing data, transforming data, or consuming data, and can be used in isolation or as part of a larger pipeline.
+
+#### Attributes:
+- **produce**: A callable that produces an iterable of results. If `produce` is not specified, this step is skipped.
+- **transform**: A callable that accepts an input of type `TStageInput` and returns an iterable of `TStageResult`. This is typically used to apply a transformation to the input data.
+- **consume**: A callable that processes each result produced or transformed by the stage. If specified, `consume` is applied to all results in the stage.
+
+#### Methods:
+- **run(input: TStageInput)**: Executes the stage by:
+  1. Calling `produce` (if defined) to generate initial results.
+  2. Applying the `transform` function to the input data.
+  3. Combining the results of `produce` and `transform`. The `produce` values will precede the `transform` values.
+  4. Optionally passing the combined results to the `consume` function.
+
+  Returns an iterable of results.
+
+- **__call__(input: TStageInput)**: A shorthand for invoking the `run` method, enabling the stage to be used like a function.
+
+#### Key Behaviors:
+- If both `produce` and `transform` are defined, their results are combined.
+- If neither `produce` nor `transform` is defined, the input is returned as the result.
+- The `consume` function is applied to all results but does not alter the returned output.
+
+#### Example:
 ```python
-@dataclass
-class PipelineStage(ABC, Generic[TStageInput, TStageResult], metaclass=TypeAnnotatedMeta):
+# Define a stage that produces static values and applies a transformation
+stage = PipelineStage(
+    produce=lambda: [1, 2, 3],
+    transform=lambda x: [x * 2],
+    consume=lambda r: print(f"Consumed: {r}")
+)
+
+output = stage(5)  # Produces: [1, 2, 3], Transforms: [10], Output: [1, 2, 3, 10]
+# Output to consume: Consumed: 1, Consumed: 2, Consumed: 3, Consumed: 10
 ```
-This is an abstract base class representing a single stage in a pipeline. Subclasses must implement the `run` method.
 
-**Attributes**:
-- None explicitly defined.
-
-**Methods**:
-1. `run(self, input: TStageInput) -> Iterable[TStageResult]`
-   - Abstract method to be implemented by subclasses.
-   - **Input**: A value of type `TStageInput`.
-   - **Output**: An iterable of `TStageResult`.
-
-2. `__call__(self, input: TStageInput) -> Iterable[TStageResult]`
-   - Calls the `run` method to process the input.
-   - Allows the stage to be invoked as a callable.
-
-**Usage Example**:
-```python
-class MultiplyByTwoStage(PipelineStage[int, int]):
-    def run(self, input: int) -> Iterable[int]:
-        return [input * 2]
-
-stage = MultiplyByTwoStage()
-print(list(stage(5)))  # Output: [10]
-```
+#### Use Cases:
+- **Data Generation**: Use `produce` to create an initial dataset, e.g., reading files or fetching data from an API.
+- **Data Transformation**: Apply `transform` to modify or filter the input data.
+- **Data Consumption**: Use `consume` for side effects such as logging, storing results, or triggering downstream actions.
 
 ---
 
-### `IdentityStage`
-**Definition**:
+### **IdentityStage**
+A subclass of `PipelineStage` that passes input through without modification.
+
+#### Attributes:
+- **transform**: Defaults to a lambda function that returns the input as an iterable.
+
+#### Example:
 ```python
-@dataclass
-class IdentityStage(PipelineStage[TStageInput, TStageInput]):
-```
-A concrete implementation of `PipelineStage` that returns the input unchanged.
-
-**Methods**:
-1. `run(self, input: TStageInput) -> Iterable[TStageInput]`
-   - Returns the input wrapped in a list.
-
-**Usage Example**:
-```python
-stage = IdentityStage()
-print(list(stage("hello")))  # Output: ["hello"]
-```
-
----
-
-### `PipelineBase`
-**Definition**:
-```python
-class PipelineBase(ABC, Generic[TPipelineInput, TPipelineResult], metaclass=TypeAnnotatedMeta):
-```
-An abstract base class for a pipeline consisting of multiple stages. Subclasses must implement the `run` method.
-
-**Attributes**:
-- `stages`: A list of `PipelineStage` instances.
-
-**Methods**:
-1. `__init__(self, stages: Iterable[PipelineStage[Any, Any]] = None)`
-   - Validates the compatibility of stages and initializes the pipeline.
-   - **Raises**:
-     - `ValueError` if no stages are provided.
-     - `TypeError` if the stages are incompatible.
-
-2. `_validate_stages(self, stages_list: list[PipelineStage[Any, Any]]) -> list[PipelineStage[Any, Any]]`
-   - Checks that the input and output types of adjoining stages match.
-
-3. `run(self, input: TPipelineInput) -> list[TPipelineResult]`
-   - Abstract method to be implemented by subclasses.
-
-4. `__call__(self, input: TPipelineInput) -> list[TPipelineResult]`
-   - Invokes the `run` method.
-
-**Usage Example**:
-```python
-# Subclassing PipelineBase
-class ExamplePipeline(PipelineBase[int, int]):
-    def run(self, input: int) -> list[int]:
-        results = input
-        for stage in self.stages:
-            results = list(stage(results))
-        return results
-
-pipeline = ExamplePipeline([MultiplyByTwoStage()])
-print(pipeline(3))  # Output: [6]
+identity = IdentityStage()
+output = identity(5)  # Output: [5]
 ```
 
 ---
 
-### `InMemoryPipeline`
-**Definition**:
+### **Pipeline**
+A sequence of stages that progressively transforms input data.
+
+#### Attributes:
+- **stages**: A list of `PipelineStage` instances.
+
+#### Methods:
+- **__init__(stages: Iterable[PipelineStage])**: Validates and initializes the pipeline stages.
+- **run(input: TPipelineInput)**: Executes the pipeline, passing data through each stage.
+- **__call__(input: TPipelineInput)**: Alias for `run`.
+
+#### Key Behaviors:
+- Ensures type compatibility between stages during initialization.
+- Processes input iteratively through all stages, allowing intermediate results to flow to subsequent stages.
+- Returns a flattened list of results after processing through all stages.
+
+#### Example:
 ```python
-class InMemoryPipeline(PipelineBase[TPipelineInput, TPipelineResult]):
-```
-A concrete implementation of `PipelineBase` that processes data in memory.
-
-**Methods**:
-1. `__init__(self, stages: Iterable[PipelineStage[Any, Any]] = None)`
-   - Calls the superclass constructor to initialize stages.
-
-2. `run(self, input: TPipelineInput) -> list[TPipelineResult]`
-   - Processes the input through all stages and flattens the results.
-
-**Usage Example**:
-```python
-pipeline = InMemoryPipeline([
-    MultiplyByTwoStage(),
-    MultiplyByTwoStage()
-])
-print(pipeline(2))  # Output: [8]
+pipeline = Pipeline(stages=[IdentityStage()])
+output = pipeline.run(5)  # Output: [5]
 ```
 
 ---
 
-## Key Concepts
-1. **Type Validation**: Ensures stages are compatible by checking input and output types.
+### **ContextualPipelineStage**
+An abstract base class for a pipeline stage that operates within a specific context. This is particularly useful for scenarios where stages need access to shared state or resources.
 
-2. **Composability**: Stages are reusable and can be combined into pipelines.
+#### Attributes:
+- **stage**: The `PipelineStage` to execute.
+- **stage_index**: The index of the stage in the pipeline.
+- **stage_count**: The total number of stages in the pipeline.
 
-3. **Generics**: Leverages Python generics to support various input and output types.
+#### Methods:
+- **generate_inputs(context: TPipelineContext)**: Abstract method to generate inputs from the context. Subclasses must implement this to define how input data is sourced.
+- **process_output(context: TPipelineContext, result: Any, result_index: int, result_count: int)**: Abstract method to process outputs within the context. Subclasses must implement this to define how results are handled or stored.
+- **run(context: TPipelineContext)**: Executes the stage within the given context by sourcing inputs, processing them through the stage, and handling outputs.
+- **__call__(context: TPipelineContext)**: Alias for `run`.
+
+#### Key Behaviors:
+- Orchestrates the interaction between the stage and the shared context.
+- Supports fine-grained control over how inputs are sourced and outputs are processed.
+
+#### Example:
+```python
+class CustomContextualStage(ContextualPipelineStage):
+    def generate_inputs(self, context):
+        return context['data']
+
+    def process_output(self, context, result, result_index, result_count):
+        context['results'].append(result)
+```
 
 ---
 
-## Summary
-This framework provides a robust way to build composable and type-safe data pipelines. Users can define custom stages by subclassing `PipelineStage`, validate and sequence them using `PipelineBase`, and process data using `InMemoryPipeline` or other implementations.
+### **ContextualPipeline**
+An abstract base class for pipelines that operate within a specific context. Designed for use cases where shared state or resources must be managed across multiple stages.
+
+#### Attributes:
+- **pipeline**: The `Pipeline` instance to execute.
+- **context**: The context object shared across the pipeline stages.
+
+#### Methods:
+- **lift(stage: PipelineStage, stage_index: int, stage_count: int)**: Abstract method to lift a stage into a contextual stage. This is used to wrap regular pipeline stages with context-awareness.
+- **run()**: Executes all stages in the pipeline within the given context, managing the flow of data and results between stages.
+
+#### Key Behaviors:
+- Provides a higher-level abstraction over standard pipelines by incorporating shared state.
+- Facilitates the extension of pipeline functionality for domain-specific use cases, such as batch processing or distributed computation.
+
+#### Example:
+```python
+class MyContextualPipeline(ContextualPipeline):
+    def lift(self, stage, stage_index, stage_count):
+        return CustomContextualStage(stage=stage, stage_index=stage_index, stage_count=stage_count)
+```
+
+---
+
+### **FileSystemContext**
+A data class that represents the file system context used in a pipeline. Encapsulates information about the root directory for file-based operations.
+
+#### Attributes:
+- **document_root**: The root directory for input and output operations.
+
+#### Key Behaviors:
+- Acts as a shared resource for file system-based pipelines, ensuring consistent paths for input and output.
+
+#### Example:
+```python
+context = FileSystemContext(document_root="/data")
+```
+
+---
+
+### **FileSystemCoupledPipelineStage**
+A contextual pipeline stage tailored for file system operations. Extends the functionality of `ContextualPipelineStage` to handle file-based inputs and outputs.
+
+#### Attributes:
+- **input_subfolder**: The input folder name for the stage.
+- **output_subfolder**: The output folder name for the stage.
+- **json_decoder**: A JSON decoder for reading input files.
+- **json_encoder**: A JSON encoder for writing output files.
+
+#### Methods:
+- **__post_init__()**: Initializes default subfolder names and JSON encoders/decoders if not provided.
+- **generate_inputs(context: FileSystemContext)**: Reads and decodes JSON files from the input folder.
+- **process_output(context: FileSystemContext, result: Any, result_index: int, result_count: int)**: Writes JSON files to the output folder based on the result index.
+
+#### Key Behaviors:
+- Automates the reading and writing of JSON files for pipeline stages.
+- Supports configurable subfolder structures for stage-specific inputs and outputs.
+
+#### Example:
+```python
+context = FileSystemContext(document_root="/data")
+stage = FileSystemCoupledPipelineStage(stage=my_stage, stage_index=0, stage_count=1)
+inputs = list(stage.generate_inputs(context))
+stage.process_output(context, result=inputs[0], result_index=1, result_count=1)
+```
+
+---
+
+### **FileSystemCoupledPipeline**
+A contextual pipeline designed to operate with file system inputs and outputs. Facilitates the integration of pipelines with structured file storage.
+
+#### Attributes:
+- **context**: A `FileSystemContext` instance containing the document root.
+- **pipeline**: The base pipeline to execute.
+
+#### Methods:
+- **lift(stage: Pipeline[Any, Any], stage_index: int, stage_count: int)**: Converts a base pipeline stage into a `FileSystemCoupledPipelineStage`.
+- **__init__(document_root: str, pipeline: Pipeline[Any, Any])**: Initializes the pipeline with a document root and stages.
+
+#### Key Behaviors:
+- Provides a seamless interface for pipelines that require file-based inputs and outputs.
+- Ensures consistent handling of file paths and operations across stages.
+
+#### Example:
+```python
+pipeline = Pipeline(stages=[IdentityStage()])
+fs_pipeline = FileSystemCoupledPipeline(document_root="/data", pipeline=pipeline)
+fs_pipeline.run()
+```
