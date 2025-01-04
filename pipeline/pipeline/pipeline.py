@@ -5,28 +5,34 @@
 from functools import reduce
 from dataclasses import dataclass
 from typing import Generic, TypeVar, Any
+from collections.abc import Iterable, Callable
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
 
 from generics.generics.generics import TypeAnnotatedMeta
-
 
 TStageInput = TypeVar('TStageInput')
 TStageResult = TypeVar('TStageResult')
 
+TPipelineInput = TypeVar('TPipelineInput')
+TPipelineResult = TypeVar('TPipelineResult')
+TPipelineContext = TypeVar('TPipelineContext')
+
+TIgnore = TypeVar('TIgnore')
+
 
 @dataclass
-class PipelineStage(ABC, Generic[TStageInput, TStageResult], metaclass=TypeAnnotatedMeta):
-    """This is a 'fat-function' representing a stage in a pipeline
+class PipelineStage(Generic[TStageInput, TStageResult], metaclass=TypeAnnotatedMeta):
+    produce: Callable[[], Iterable[TStageResult]] = None
+    transform: Callable[[TStageInput], Iterable[TStageResult]] = None
+    consume: Callable[[TStageResult], None] = None
 
-    It effectively has the following signature:
-        TStageInput -> Iterable[TStageResult]:
-
-    Implement in a subclass with whatever context is required to run the stage.
-    """
-    @abstractmethod
     def run(self, input: TStageInput) -> Iterable[TStageResult]:
-        pass
+        produce_results = list(self.produce()) if self.produce else []
+        transform_results = list(self.transform(input)) if self.transform else []
+        results = produce_results + transform_results if produce_results or transform_results else [input]
+        if self.consume:
+            list(map(self.consume, results))
+        return results
 
     def __call__(self, input: TStageInput) -> Iterable[TStageResult]:
         return self.run(input)
@@ -34,15 +40,20 @@ class PipelineStage(ABC, Generic[TStageInput, TStageResult], metaclass=TypeAnnot
 
 @dataclass
 class IdentityStage(PipelineStage[TStageInput, TStageInput]):
-    def run(self, input: TStageInput) -> Iterable[TStageInput]:
-        return [input]
+    transform: Callable[[TStageInput], Iterable[TStageInput]] = lambda x: [x]
 
 
-TPipelineInput = TypeVar('TPipelineInput')
-TPipelineResult = TypeVar('TPipelineResult')
+class Pipeline(Generic[TPipelineInput, TPipelineResult], metaclass=TypeAnnotatedMeta):
+    """This is a base class for a pipeline of stages
 
+    It takes as its only argument a list of stages, which progressively transform
+    an input of type `TPipelineInput` to an output sequence of type `TPipelineResult`.
 
-class PipelineBase(ABC, Generic[TPipelineInput, TPipelineResult], metaclass=TypeAnnotatedMeta):
+    The stages are validated to ensure that the input and output types of adjoining stages are compatible.
+
+    By default, the pipeline composes and runs its stages in memory.
+    Subclass as necessary and implement the `run` method to effect other forms of composition.
+    """
     def __init__(self, stages: Iterable[PipelineStage[Any, Any]] = None):
         """Validates that the stages passed in are compatible with each other and with the expected input and output types."""
         self.stages = self._validate_stages(list(stages or [IdentityStage[self.TPipelineInput, self.TPipelineInput]()]))
@@ -67,20 +78,8 @@ class PipelineBase(ABC, Generic[TPipelineInput, TPipelineResult], metaclass=Type
 
         return stages_list
 
-    @abstractmethod
     def run(self, input: TPipelineInput) -> list[TPipelineResult]:
-        pass
-
-    def __call__(self, input: TPipelineInput) -> list[TPipelineResult]:
-        return self.run(input)
-
-
-class InMemoryPipeline(PipelineBase[TPipelineInput, TPipelineResult]):
-    def __init__(self, stages: Iterable[PipelineStage[Any, Any]] = None):
-        super().__init__(stages)
-
-    def run(self, input: TPipelineInput) -> list[TPipelineResult]:
-        def flatten(nested_iterables: Iterable[Iterable[TPipelineResult]]) -> Iterable[TPipelineResult]:
+        def flatten(nested_iterables: list[list[TPipelineResult]]) -> Iterable[TPipelineResult]:
             for iterable in nested_iterables:
                 yield from iterable
 
@@ -89,3 +88,52 @@ class InMemoryPipeline(PipelineBase[TPipelineInput, TPipelineResult]):
             results = list(flatten(stage(r) for r in results))
 
         return results
+
+    def __call__(self, input: TPipelineInput) -> list[TPipelineResult]:
+        return self.run(input)
+
+
+@dataclass
+class ContextualPipelineStage(ABC, Generic[TPipelineContext], metaclass=TypeAnnotatedMeta):
+    stage: PipelineStage[Any, Any]
+    stage_index: int
+    stage_count: int
+
+    @abstractmethod
+    def generate_inputs(self, context: TPipelineContext) -> Iterable[Any]:
+        pass
+
+    @abstractmethod
+    def process_output(self, context: TPipelineContext, result: Any, result_index: int, result_count: int) -> None:
+        pass
+
+    def run(self, context: TPipelineContext) -> TPipelineContext:
+        def process_outputs(context, results: list[Any]):
+            result_count = len(results)
+            for index, result in enumerate(results, start=1):
+                self.process_output(context, result, result_index=index, result_count=result_count)
+            return context
+
+        match list(self.generate_inputs(context)):
+            case []:
+                # This may be an initial stage which generates all the inputs ab-initio
+                return process_outputs(self.stage.produce())
+            case inputs:
+                return reduce(lambda ctx, input: process_outputs(ctx, self.stage(input)), inputs, context)
+
+    def __call__(self, context: TPipelineContext) -> TPipelineContext:
+        return self.run(context)
+
+
+@dataclass
+class ContextualPipeline(ABC, Generic[TPipelineContext], metaclass=TypeAnnotatedMeta):
+    pipeline: Pipeline[Any, Any]
+    context: TPipelineContext
+
+    def run(self) -> TPipelineContext:
+        stage_count = len(self.pipeline.stages)
+        contextual_stages = [
+            ContextualPipelineStage(stage, stage_index=index, stage_count=stage_count)
+            for index, stage in enumerate(self.pipeline.stages)
+        ]
+        return reduce(lambda context, contextual_stage: contextual_stage(context), contextual_stages, self.context)

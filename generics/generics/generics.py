@@ -2,6 +2,7 @@
 # Authors: Christian Smith; John Azariah
 # All rights reserved.
 
+from types import NoneType
 from typing import TypeVar, _GenericAlias
 from abc import ABCMeta
 
@@ -37,7 +38,7 @@ class TypeAnnotatedMeta(ABCMeta):
 
         # Validate all type parameters (ignore TypeVar instances)
         for typ in types:
-            if not isinstance(typ, (type, TypeVar, _GenericAlias)):
+            if not isinstance(typ, (type, TypeVar, _GenericAlias, NoneType)):
                 raise TypeError(f"Type annotations must be types, not {type(typ).__name__}")
 
         # Dynamically create a new subclass with class-level properties for type parameters
