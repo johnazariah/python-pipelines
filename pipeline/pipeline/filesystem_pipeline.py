@@ -20,8 +20,12 @@ class FileSystemContext:
 class FileSystemCoupledPipelineStage(ContextualPipelineStage[FileSystemContext]):
     input_subfolder: str | None = None
     output_subfolder: str | None = None
-    json_decoder = msgspec.json.Decoder()
-    json_encoder = msgspec.json.Encoder()
+
+    def __post_init__(self):
+        self.input_subfolder = self.input_subfolder or f"stage_{self.stage_index}"
+        self.output_subfolder = self.output_subfolder or f"stage_{self.stage_index + 1}"
+        self.json_decoder = msgspec.json.Decoder()
+        self.json_encoder = msgspec.json.Encoder()
 
     def generate_inputs(self, context: FileSystemContext) -> Iterable[Any]:
         input_folder = os.path.join(context.document_root, self.input_subfolder)
@@ -45,5 +49,8 @@ class FileSystemCoupledPipelineStage(ContextualPipelineStage[FileSystemContext])
 
 
 class FileSystemCoupledPipeline(ContextualPipeline[FileSystemContext]):
+    def lift(self, stage: Pipeline[Any, Any], stage_index: int, stage_count: int) -> FileSystemCoupledPipelineStage:
+        return FileSystemCoupledPipelineStage(stage=stage, stage_index=stage_index, stage_count=stage_count)
+
     def __init__(self, document_root: str, pipeline: Pipeline[Any, Any]):
         super().__init__(context=FileSystemContext(document_root=document_root), pipeline=pipeline)

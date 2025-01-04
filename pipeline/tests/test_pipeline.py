@@ -86,12 +86,13 @@ def test_pipeline_stage_with_transform_only():
     assert result == [6], "PipelineStage with transform only should correctly transform input."
 
 
-def test_pipeline_stage_with_produce_only():
-    @dataclass
-    class ProduceOnlyStage(PipelineStage[None, int]):
-        def __init__(self):
-            self.produce = lambda: [1, 2, 3]
+@dataclass
+class ProduceOnlyStage(PipelineStage[int, int]):
+    def __init__(self):
+        self.produce = lambda: [1, 2, 3]
 
+
+def test_pipeline_stage_with_produce_only():
     stage = ProduceOnlyStage()
     result = stage(None)
     assert result == [1, 2, 3], "PipelineStage with produce only should correctly produce output."

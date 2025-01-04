@@ -114,12 +114,10 @@ class ContextualPipelineStage(ABC, Generic[TPipelineContext], metaclass=TypeAnno
                 self.process_output(context, result, result_index=index, result_count=result_count)
             return context
 
-        match list(self.generate_inputs(context)):
-            case []:
-                # This may be an initial stage which generates all the inputs ab-initio
-                return process_outputs(self.stage.produce())
-            case inputs:
-                return reduce(lambda ctx, input: process_outputs(ctx, self.stage(input)), inputs, context)
+        if self.stage.produce:
+            return process_outputs(context, self.stage.produce())
+        else:
+            return reduce(lambda ctx, input: process_outputs(ctx, self.stage(input)), list(self.generate_inputs(context)), context)
 
     def __call__(self, context: TPipelineContext) -> TPipelineContext:
         return self.run(context)
@@ -130,10 +128,14 @@ class ContextualPipeline(ABC, Generic[TPipelineContext], metaclass=TypeAnnotated
     pipeline: Pipeline[Any, Any]
     context: TPipelineContext
 
+    @abstractmethod
+    def lift(self, stage: PipelineStage[Any, Any], stage_index: int, stage_count: int) -> ContextualPipelineStage:
+        pass
+
     def run(self) -> TPipelineContext:
         stage_count = len(self.pipeline.stages)
         contextual_stages = [
-            ContextualPipelineStage(stage, stage_index=index, stage_count=stage_count)
+            self.lift(stage, stage_index=index, stage_count=stage_count)
             for index, stage in enumerate(self.pipeline.stages)
         ]
         return reduce(lambda context, contextual_stage: contextual_stage(context), contextual_stages, self.context)
