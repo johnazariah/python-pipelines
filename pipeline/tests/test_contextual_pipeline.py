@@ -78,7 +78,7 @@ def test_pipeline_with_consume_only_stage():
         result = ""
 
         def append(self, x: str):
-            self.result += ", " + x  #  Do something explicitly garbage so we know we definitely consumed the output!
+            self.result += ", " + x  # Do something explicitly garbage so we know we definitely consumed the output!
 
         def __init__(self):
             self.consume = self.append
