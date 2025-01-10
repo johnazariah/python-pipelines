@@ -8,7 +8,7 @@ from typing import Any
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from .pipeline import ContextualPipeline, ContextualPipelineStage, Pipeline
+from .pipeline import EnhancedPipeline, PipelineStageEnhancer, Pipeline, PipelineStage
 
 
 @dataclass
@@ -17,14 +17,11 @@ class FileSystemContext:
 
 
 @dataclass
-class FileSystemCoupledPipelineStage(ContextualPipelineStage[FileSystemContext]):
-    input_subfolder: str | None = None
-    output_subfolder: str | None = None
-
-    def __post_init__(self):
-        self.input_subfolder = self.input_subfolder or f"stage_{self.stage_index}"
-        self.output_subfolder = self.output_subfolder or f"stage_{self.stage_index + 1}"
-        self.json_decoder = msgspec.json.Decoder()
+class FileSystemEnhancer(PipelineStageEnhancer[FileSystemContext]):
+    def __init__(self, stage: PipelineStage[Any, Any], stage_index: int, stage_count: int):
+        super().__init__(stage=stage, stage_index=stage_index, stage_count=stage_count)
+        self.input_subfolder = f"stage_{stage_index}"
+        self.output_subfolder = f"stage_{stage_index + 1}"
         self.json_encoder = msgspec.json.Encoder()
 
     def generate_inputs(self, context: FileSystemContext) -> Iterable[Any]:
@@ -32,14 +29,14 @@ class FileSystemCoupledPipelineStage(ContextualPipelineStage[FileSystemContext])
         for filename in os.listdir(input_folder):
             if filename.endswith(".json"):
                 with open(os.path.join(input_folder, filename), "rb") as f:
-                    yield self.json_decoder(f.read(), type=self.stage.TStageInput, strict=False)
+                    yield msgspec.json.decode(f.read(), type=self.stage.TStageInput, strict=False)
 
     def process_output(self, context: FileSystemContext, result: Any, result_index: int, result_count: int) -> None:
         def write_json_to_file(result: Any, filename: str) -> None:
             os.makedirs(os.path.join(context.document_root, self.output_subfolder), exist_ok=True)
             output_file_name = os.path.join(context.document_root, self.output_subfolder, filename)
             with open(output_file_name, "wb") as f:
-                f.write(self.json_encoder(result))
+                f.write(self.json_encoder.encode(result))
 
         match (result_index, result_count):
             case (1, 1):
@@ -48,9 +45,6 @@ class FileSystemCoupledPipelineStage(ContextualPipelineStage[FileSystemContext])
                 write_json_to_file(result, f"{result.id}_{result_index}.json")  # TODO: make this configurable
 
 
-class FileSystemCoupledPipeline(ContextualPipeline[FileSystemContext]):
-    def lift(self, stage: Pipeline[Any, Any], stage_index: int, stage_count: int) -> FileSystemCoupledPipelineStage:
-        return FileSystemCoupledPipelineStage(stage=stage, stage_index=stage_index, stage_count=stage_count)
-
+class FileSystemCoupledPipeline(EnhancedPipeline[FileSystemEnhancer, FileSystemContext]):
     def __init__(self, document_root: str, pipeline: Pipeline[Any, Any]):
         super().__init__(context=FileSystemContext(document_root=document_root), pipeline=pipeline)

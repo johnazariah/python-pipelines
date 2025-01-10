@@ -15,6 +15,7 @@ TStageResult = TypeVar('TStageResult')
 
 TPipelineInput = TypeVar('TPipelineInput')
 TPipelineResult = TypeVar('TPipelineResult')
+TPipelineStageAdapter = TypeVar('TPipelineStageAdapter')
 TPipelineContext = TypeVar('TPipelineContext')
 
 TIgnore = TypeVar('TIgnore')
@@ -22,9 +23,14 @@ TIgnore = TypeVar('TIgnore')
 
 @dataclass
 class PipelineStage(Generic[TStageInput, TStageResult], metaclass=TypeAnnotatedMeta):
-    produce: Callable[[], Iterable[TStageResult]] = None
-    transform: Callable[[TStageInput], Iterable[TStageResult]] = None
-    consume: Callable[[TStageResult], None] = None
+    def produce(self) -> Iterable[TStageResult]:
+        return []
+
+    def transform(self, input: TStageInput) -> Iterable[TStageResult]:
+        return []
+
+    def consume(self, result: TStageResult) -> None:
+        return
 
     def run(self, input: TStageInput) -> Iterable[TStageResult]:
         produce_results = list(self.produce()) if self.produce else []
@@ -93,11 +99,11 @@ class Pipeline(Generic[TPipelineInput, TPipelineResult], metaclass=TypeAnnotated
         return self.run(input)
 
 
-@dataclass
-class ContextualPipelineStage(ABC, Generic[TPipelineContext], metaclass=TypeAnnotatedMeta):
-    stage: PipelineStage[Any, Any]
-    stage_index: int
-    stage_count: int
+class PipelineStageEnhancer(ABC, Generic[TPipelineContext], metaclass=TypeAnnotatedMeta):
+    def __init__(self, stage: PipelineStage[Any, Any], stage_index: int, stage_count: int):
+        self.stage = stage
+        self.stage_index = stage_index
+        self.stage_count = stage_count
 
     @abstractmethod
     def generate_inputs(self, context: TPipelineContext) -> Iterable[Any]:
@@ -114,28 +120,30 @@ class ContextualPipelineStage(ABC, Generic[TPipelineContext], metaclass=TypeAnno
                 self.process_output(context, result, result_index=index, result_count=result_count)
             return context
 
-        if self.stage.produce:
-            return process_outputs(context, self.stage.produce())
-        else:
-            return reduce(lambda ctx, input: process_outputs(ctx, self.stage(input)), list(self.generate_inputs(context)), context)
+        match list(self.stage.produce()):
+            case None | []:
+                return reduce(lambda ctx, input: process_outputs(ctx, self.stage(input)), list(self.generate_inputs(context)), context)
+            case produce_results:
+                return process_outputs(context, produce_results)
 
     def __call__(self, context: TPipelineContext) -> TPipelineContext:
         return self.run(context)
 
 
 @dataclass
-class ContextualPipeline(ABC, Generic[TPipelineContext], metaclass=TypeAnnotatedMeta):
+class EnhancedPipeline(ABC, Generic[TPipelineStageAdapter, TPipelineContext], metaclass=TypeAnnotatedMeta):
     pipeline: Pipeline[Any, Any]
     context: TPipelineContext
 
-    @abstractmethod
-    def lift(self, stage: PipelineStage[Any, Any], stage_index: int, stage_count: int) -> ContextualPipelineStage:
-        pass
-
-    def run(self) -> TPipelineContext:
+    def __post_init__(self):
         stage_count = len(self.pipeline.stages)
-        contextual_stages = [
-            self.lift(stage, stage_index=index, stage_count=stage_count)
+        self.contextual_stages = [
+            self.TPipelineStageAdapter(stage, stage_index=index, stage_count=stage_count)
             for index, stage in enumerate(self.pipeline.stages)
         ]
-        return reduce(lambda context, contextual_stage: contextual_stage(context), contextual_stages, self.context)
+
+    def run(self) -> TPipelineContext:
+        return reduce(lambda context, contextual_stage: contextual_stage(context), self.contextual_stages, self.context)
+
+    def __call__(self) -> TPipelineContext:
+        return self.run()
