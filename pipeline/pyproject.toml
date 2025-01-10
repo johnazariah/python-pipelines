@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ixp_pipeline"
+version = "0.1.0"
+description = "A Python library for building pipelines with ixp_generics"
+readme = "README.md"
+authors = [{ name = "John S. Azariah", email = "john.azariah@gmail.com" }]
+license = { file = "LICENSE" }
+keywords = ["pipeline", "workflow", "generics"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+]
+requires-python = ">=3.12"
+dependencies = ["ixp_generics @ file://../ixp_generics"]
+
+[tool.setuptools]
+packages = ["pipeline"]
