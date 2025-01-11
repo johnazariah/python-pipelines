@@ -59,13 +59,15 @@ jobs:
 
   release:
     name: Build, Sign and Publish Python packages
-    if: github.event_name == 'release'  # Only sign and publish on GitHub release creation
+    if: startsWith(github.ref, 'refs/tags/')  # only publish to PyPI on tag pushes
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: write
+    env:
+      name: pypi
+      url: https://pypi.org/p/ixp_pipeline
     steps:
-
     - uses: actions/checkout@v4
 
     - name: Merge requirements.txt files
@@ -115,35 +117,30 @@ jobs:
       with:
         path: dist/
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install sigstore
-
-    - name: Glob match
-      uses: tj-actions/glob@v22
-      id: glob
-      with:
-        files: dist/*.whl
-
-    - name: Sign packages with Sigstore
-      env:
-        SIGSTORE_OIDC_ISSUER: https://oauth2.sigstore.dev/auth
-        SIGSTORE_OIDC_CLIENT_ID: sigstore
-      run: |
-        for file in ${{ steps.glob.outputs.paths }}; do
-          python -m sigstore sign "$file"
-        done
-
-    - name: Publish to PyPI
-      env:
-        name: pypi
-        url: https://pypi.org/p/ixp_pipeline
+    - name: Publish distribution 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
 
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
+    - name: Sign the dists with Sigstore
+      uses: sigstore/gh-action-sigstore-python@v3.0.0
       with:
-        files: dist/*
+        inputs: >-
+          ./dist/*.tar.gz
+          ./dist/*.whl
+    - name: Create GitHub Release
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ github.token }}
+      run: >-
+        gh release create
+        "$GITHUB_REF_NAME"
+        --repo "$GITHUB_REPOSITORY"
+        --notes ""
+    - name: Upload artifact signatures to GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      # Upload to GitHub Release using the `gh` CLI.
+      # `dist/` contains the built packages, and the
+      # sigstore-produced signatures and certificates.
+      run: >-
+        gh release upload
+        "$GITHUB_REF_NAME" dist/**
+        --repo "$GITHUB_REPOSITORY"
