@@ -54,8 +54,8 @@ jobs:
 
     - name: Build packages
       run: |
-        cd ixp_generics && python -m build && cd ..
-        cd ixp_pipeline && python -m build && cd ..
+        cd generics && python -m build && cd ..
+        cd pipeline && python -m build && cd ..
 
     - name: Upload ixp_generics artifact
       uses: actions/upload-artifact@v4
