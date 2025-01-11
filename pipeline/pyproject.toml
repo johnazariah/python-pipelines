@@ -19,7 +19,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 requires-python = ">=3.12"
-dependencies = ["ixp_generics @ file://../ixp_generics"]
+dependencies = ["ixp_generics>=0.1.0"]
 
 [tool.setuptools]
 packages = ["pipeline"]

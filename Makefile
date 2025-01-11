@@ -3,7 +3,24 @@
 .PHONY: all build-generics build-pipeline clean-generics clean-pipeline clean
 
 # Default target
-all: build-generics build-pipeline
+all: clean build install
+
+install: install-generics install-pipeline
+	@echo "All packages installed."
+
+# Install generics
+install-generics:
+	@echo "Installing generics package..."
+	pip install $(wildcard generics/dist/*.whl)
+
+# Install pipeline
+install-pipeline:
+	@echo "Installing pipeline package..."
+	pip install $(wildcard pipeline/dist/*.whl)
+
+
+# Build all packages
+build: build-generics build-pipeline
 
 # Build generics
 build-generics:
