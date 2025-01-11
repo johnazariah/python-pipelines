@@ -66,6 +66,12 @@ jobs:
       id-token: write
       contents: write
     steps:
+
+    - name: Build packages
+      run: |
+        cd generics && python -m build && cd ..
+        cd pipeline && python -m build && cd ..
+
     - name: Upload ixp_generics artifact
       uses: actions/upload-artifact@v4
       with:
@@ -88,12 +94,18 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install sigstore
 
+    - name: Glob match
+      uses: tj-actions/glob@v22
+      id: glob
+      with:
+        files: dist/*.whl
+
     - name: Sign packages with Sigstore
       env:
         SIGSTORE_OIDC_ISSUER: https://oauth2.sigstore.dev/auth
         SIGSTORE_OIDC_CLIENT_ID: sigstore
       run: |
-        for file in dist/ixp-generics-* dist/ixp-pipeline-*; do
+        for file in ${{ steps.glob.outputs.paths }}; do
           python -m sigstore sign "$file"
         done
 
