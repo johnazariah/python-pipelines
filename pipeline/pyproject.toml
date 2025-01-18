@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ixp_pipeline"
-version = "0.1.0"
+version = "0.2.0"
 description = "A Python library for building pipelines with ixp_generics"
 readme = "README.md"
 authors = [{ name = "John S. Azariah", email = "john.azariah@gmail.com" }]
