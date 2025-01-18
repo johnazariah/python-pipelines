@@ -111,6 +111,11 @@ jobs:
       with:
         path: dist/
 
+    - name: List contents of dist/ folder
+      run: |
+        ls -al
+        ls -al dist/
+
     - name: Publish distribution 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
 
