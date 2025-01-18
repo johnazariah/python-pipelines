@@ -7,12 +7,12 @@ on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: Lint, Test & Build
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.12", "3.13"]
-
     steps:
     - uses: actions/checkout@v4
 
@@ -51,89 +51,68 @@ jobs:
         cd generics && python -m build && cd ..
         cd pipeline && python -m build && cd ..
 
+    - name: Upload ixp-generic artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ixp-generics-${{ matrix.python-version }}
+        path: |
+          generics/dist/
+
+    - name: Upload ixp-pipeline artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ixp-pipeline-${{ matrix.python-version }}
+        path: |
+          pipeline/dist/
+
   release:
-    name: Build, Sign and Publish Python packages
-    if: startsWith(github.ref, 'refs/tags/')  # only publish to PyPI on tag pushes
-    runs-on: ubuntu-latest
+    name: Sign, Publish & Release
+    if: startsWith(github.ref, 'refs/tags/v')  # only publish to PyPI on tag pushes that start with 'v'
+    runs-on: ubuntu-24.04
+    needs: build
     permissions:
       id-token: write
       contents: write
     env:
       name: pypi
-      url: https://pypi.org/p/ixp_pipeline
+      python-version-to-publish: "3.12"
+      url: https://test.pypi.org/p/ixp_pipeline
+      pypi-publish-url: https://test.pypi.org/legacy/
     steps:
     - uses: actions/checkout@v4
 
-    - name: Merge requirements.txt files
-      run: |
-        find . -name 'requirements.txt' -exec cat {} \; | sort | uniq > requirements.txt
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install flake8 pytest build twine
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-
-    - name: Lint with flake8
-      run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-
-    - name: Set PYTHONPATH
-      run: |
-        echo "PYTHONPATH=$PYTHONPATH:$(pwd)" >> $GITHUB_ENV
-
-    - name: Run tests with pytest
-      run: |
-        pytest
-
-    - name: Build packages
-      run: |
-        cd generics && python -m build && cd ..
-        cd pipeline && python -m build && cd ..
-
-    - name: Upload ixp_generics artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ixp-generics-distribution
-        path: generics/dist/
-
-    - name: Upload ixp_pipeline artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ixp-pipeline-distribution
-        path: pipeline/dist/
-
-    - name: Download all artifacts
+    - name: Download artifacts
       uses: actions/download-artifact@v4
       with:
         path: dist/
 
-    - name: List contents of dist/ folder
+    - name: Build packages
       run: |
-        ls -al
-        ls -al dist/
-        ls -al dist/ixp-generics-distribution
-        ls -al dist/ixp-pipeline-distribution
+        ls -l
+        ls -l dist/
 
-    - name: Publish distribution 📦 to PyPI
+    - name: Publish ixp_generics 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
-        packages-dir: dist/ixp-generics-distribution
+        repository-url: ${{ env.pypi-publish-url }}
+        packages-dir: dist/ixp-generics-${{ env.python-version-to-publish }}
+        skip-existing: true
         
-    - name: Publish distribution 📦 to PyPI
+    - name: Publish ixp_pipeline 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
-        packages-dir: dist/ixp-pipeline-distribution
+        repository-url: ${{ env.pypi-publish-url }}
+        packages-dir: dist/ixp-pipeline-${{ env.python-version-to-publish }}
+        skip-existing: true
 
-    - name: Sign the dists with Sigstore
+    - name: Sign with Sigstore
       uses: sigstore/gh-action-sigstore-python@v3.0.0
       with:
         inputs: >-
-          ./dist/*.tar.gz
-          ./dist/*.whl
+          ./dist/ixp-generics-${{ env.python-version-to-publish }}/*.tar.gz
+          ./dist/ixp-generics-${{ env.python-version-to-publish }}/*.whl
+          ./dist/ixp-pipeline-${{ env.python-version-to-publish }}/*.tar.gz
+          ./dist/ixp-pipeline-${{ env.python-version-to-publish }}/*.whl
     - name: Create GitHub Release
       env:
         GITHUB_TOKEN: ${{ github.token }}
@@ -142,7 +121,8 @@ jobs:
         "$GITHUB_REF_NAME"
         --repo "$GITHUB_REPOSITORY"
         --notes ""
-    - name: Upload artifact signatures to GitHub Release
+
+    - name: Upload release artifacts
       env:
         GITHUB_TOKEN: ${{ github.token }}
       # Upload to GitHub Release using the `gh` CLI.
@@ -150,5 +130,5 @@ jobs:
       # sigstore-produced signatures and certificates.
       run: >-
         gh release upload
-        "$GITHUB_REF_NAME" dist/**
+        "$GITHUB_REF_NAME" dist/ixp-generics-${{ env.python-version-to-publish }}/** dist/ixp-pipeline-${{ env.python-version-to-publish }}/**
         --repo "$GITHUB_REPOSITORY"
