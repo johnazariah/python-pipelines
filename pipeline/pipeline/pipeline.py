@@ -8,7 +8,7 @@ from typing import Generic, TypeVar, Any
 from collections.abc import Iterable, Callable
 from abc import ABC, abstractmethod
 
-from generics.generics.generics import TypeAnnotatedMeta
+from generics import TypeAnnotatedMeta
 
 TStageInput = TypeVar('TStageInput')
 TStageResult = TypeVar('TStageResult')

@@ -1,7 +1,12 @@
 import pytest
-from pipeline.pipeline.pipeline import PipelineStage, Pipeline
-from dataclasses import dataclass, field
-from collections.abc import Callable
+from dataclasses import dataclass
+from collections.abc import Iterable
+
+import sys
+import pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent.parent / "generics" / "generics"))
+from pipeline.pipeline import PipelineStage, Pipeline
 
 
 @dataclass
@@ -13,10 +18,12 @@ class InitialStage(PipelineStage[int, int]):
     def transform(self, input):
         yield self.double(input)
 
+
 @dataclass
 class IntermediateStage(PipelineStage[int, str]):
     def transform(self, x: int) -> list[str]:
         return [str(x)]
+
 
 @dataclass
 class FinalStage(PipelineStage[str, str]):
@@ -76,7 +83,7 @@ def test_pipeline_input_output_type_match():
 def test_pipeline_stage_with_transform_only():
     @dataclass
     class TransformOnlyStage(PipelineStage[int, int]):
-        def transform(self, x: int) -> list[int]:
+        def transform(self, x: int) -> Iterable[int]:
             yield x + 1
 
     stage = TransformOnlyStage()
@@ -223,5 +230,5 @@ def test_pipeline_with_complex_stage_combinations():
     pipeline = Pipeline[int, int]([stage1, stage2, stage3])
 
     result = pipeline(5)
-    assert result == [(20-3), (((5+1)*2)-3)], "Pipeline should correctly process through complex stage combinations."
+    assert result == [(20 - 3), (((5 + 1) * 2) - 3)], "Pipeline should correctly process through complex stage combinations."
     assert consumed_results == [17, 9], "Pipeline should correctly consume results from complex stage combinations."

@@ -1,9 +1,8 @@
-from pipeline.pipeline.pipeline import Pipeline, PipelineStage, PipelineStageEnhancer, EnhancedPipeline
-from pipeline.pipeline.filesystem_pipeline import FileSystemCoupledPipeline
 from collections.abc import Iterable
 from dataclasses import dataclass
 
 from test_pipeline import InitialStage, IntermediateStage, FinalStage, ProduceOnlyStage
+from pipeline.pipeline import Pipeline, PipelineStage, PipelineStageEnhancer, EnhancedPipeline
 
 
 class DictionaryEnhancer(PipelineStageEnhancer[dict]):

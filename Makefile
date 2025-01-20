@@ -1,9 +1,15 @@
 # Makefile for building and testing generics and pipeline
 
-.PHONY: all build-generics build-pipeline clean-generics clean-pipeline clean
+.PHONY: all setup clean test lint test-generics test-pipeline build-generics build-pipeline clean-generics clean-pipeline clean
 
 # Default target
-all: clean build install
+all: clean lint test build install
+
+dev: clean lint test build
+
+setup:
+	@echo "Setting up linters..."
+	pip install flake8 pytest
 
 install: install-generics install-pipeline
 	@echo "All packages installed."
@@ -18,6 +24,22 @@ install-pipeline:
 	@echo "Installing pipeline package..."
 	pip install $(wildcard pipeline/dist/*.whl)
 
+lint:
+	flake8 generics pipeline
+	@echo "Lint complete."
+
+test: test-generics test-pipeline
+	@echo "All tests passed."
+
+# Test generics
+test-generics:
+	@echo "Testing generics package..."
+	cd generics && pytest -v tests & cd ..
+
+# Test pipeline
+test-pipeline:
+	@echo "Testing pipeline package..."
+	cd pipeline && pytest -v tests & cd ..
 
 # Build all packages
 build: build-generics build-pipeline
@@ -25,12 +47,12 @@ build: build-generics build-pipeline
 # Build generics
 build-generics:
 	@echo "Building generics package..."
-	cd generics && python -m build
+	cd generics && python -m build & cd ..
 
 # Build pipeline
 build-pipeline:
 	@echo "Building pipeline package..."
-	cd pipeline && python -m build
+	cd pipeline && python -m build & cd ..
 
 # Clean build artifacts for generics
 clean-generics:

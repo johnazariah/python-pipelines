@@ -1,10 +1,16 @@
 import pytest
 import shutil
 
-from pipeline.pipeline.pipeline import Pipeline, PipelineStage
-from pipeline.pipeline.filesystem_pipeline import FileSystemCoupledPipeline
 from collections.abc import Iterable
 from dataclasses import dataclass
+
+import sys
+import pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent.parent / "generics" / "generics"))
+from pipeline.pipeline import Pipeline, PipelineStage
+from pipeline.filesystem_pipeline import FileSystemCoupledPipeline
+
 
 @dataclass
 class Initial:
