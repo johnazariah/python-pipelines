@@ -9,7 +9,7 @@ import pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent.parent / "generics" / "generics"))
 from pipeline.pipeline import Pipeline, PipelineStage
-from pipeline.filesystem_pipeline import FileSystemCoupledPipeline
+from pipeline.filesystem_coupled_pipeline import FileSystemCoupledPipeline
 
 
 @dataclass
