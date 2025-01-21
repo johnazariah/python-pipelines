@@ -8,22 +8,25 @@ import sys
 import pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent.parent / "generics" / "generics"))
-from pipeline.pipeline import Pipeline, PipelineStage
+from pipeline.pipeline import Pipeline, PipelineStage, to_filename
 from pipeline.filesystem_coupled_pipeline import FileSystemCoupledPipeline
 
 
+@to_filename(lambda obj: f"{obj.id}")
 @dataclass
 class Initial:
     id: int
     value: int
 
 
+@to_filename(lambda obj: f"{obj.id}")
 @dataclass
 class Intermediate:
     id: int
     value: str
 
 
+@to_filename(lambda obj: f"{obj.id}")
 @dataclass
 class Intermediate2:
     id: int

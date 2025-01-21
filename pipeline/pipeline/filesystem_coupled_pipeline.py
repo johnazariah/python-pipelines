@@ -29,7 +29,7 @@ class FileSystemEnhancer(PipelineStageEnhancer[FileSystemContext]):
         for filename in os.listdir(input_folder):
             if filename.endswith(".json"):
                 with open(os.path.join(input_folder, filename), "rb") as f:
-                    yield msgspec.json.decode(f.read(), type=self.stage.TStageInput, strict=False)
+                    yield msgspec.json.decode(f.read(), type=self.stage.TStageInput, strict=False)  # TODO: JOHN - active bug here - this doesn't decorate the object with the filename attribute
 
     def process_output(self, context: FileSystemContext, result: Any, result_index: int, result_count: int) -> None:
         def write_json_to_file(result: Any, filename: str) -> None:
@@ -38,11 +38,15 @@ class FileSystemEnhancer(PipelineStageEnhancer[FileSystemContext]):
             with open(output_file_name, "wb") as f:
                 f.write(self.json_encoder.encode(result))
 
-        match (result_index, result_count):
-            case (1, 1):
-                write_json_to_file(result, f"{result.id}.json")  # TODO: make this configurable
-            case (_, _):
-                write_json_to_file(result, f"{result.id}_{result_index}.json")  # TODO: make this configurable
+        if getattr(result, "filename", None) is not None:
+            match (result_index, result_count):
+                case (1, 1):
+                    write_json_to_file(result, f"{result.filename}.json")  # note - this uses the attribute injected by the `to_filename` decorator
+                case (_, _):
+                    write_json_to_file(result, f"{result.filename}_{result_index}.json")  # note - this uses the attribute injected by the `to_filename` decorator
+        else:
+            print(f"Warning: No filename attribute found on result object {result}. Writing result to generic filename.")
+            write_json_to_file(result, f"result_{result_index}.json")
 
 
 class FileSystemCoupledPipeline(EnhancedPipeline[FileSystemEnhancer, FileSystemContext]):

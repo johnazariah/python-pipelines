@@ -2,7 +2,7 @@
 # Authors: Christian Smith; John Azariah
 # All rights reserved.
 
-from functools import reduce
+from functools import reduce, wraps
 from dataclasses import dataclass
 from typing import Generic, TypeVar, Any
 from collections.abc import Iterable, Callable
@@ -12,6 +12,7 @@ from generics import TypeAnnotatedMeta
 
 TStageInput = TypeVar('TStageInput')
 TStageResult = TypeVar('TStageResult')
+TStageOther = TypeVar('TStageOther')
 
 TPipelineInput = TypeVar('TPipelineInput')
 TPipelineResult = TypeVar('TPipelineResult')
@@ -21,8 +22,44 @@ TPipelineContext = TypeVar('TPipelineContext')
 TIgnore = TypeVar('TIgnore')
 
 
+# Custom decorator to generate filename
+def to_filename(lambda_func):
+    """Use this decorator to specify the filename for a dataclass instance.
+
+    This decorator injects a `filename` attribute into the dataclass instance, which will be generated using the provided lambda function.
+    Do not specify the extension for the filename. The extension will be added automatically based on the file format by the pipeline.
+    """
+    def decorator(cls):
+        original_init = cls.__init__
+
+        @wraps(original_init)
+        def new_init(self, *args, **kwargs):
+            original_init(self, *args, **kwargs)
+            # Generate the filename using the provided lambda function
+            self.filename = lambda_func(self)
+
+        cls.__init__ = new_init
+        return cls
+    return decorator
+
+
+# # Example usage
+# @to_filename(lambda obj: f"{obj.first_name}_{obj.last_name}_{obj.id}")
+# @dataclass
+# class User:
+#     first_name: str
+#     last_name: str
+#     id: int
+
+# # Test the decorated dataclass
+# user1 = User(first_name="John", last_name="Doe", id=123)
+# print(user1.filename)  # Output: John_Doe_123
+
+
 @dataclass
 class PipelineStage(Generic[TStageInput, TStageResult], metaclass=TypeAnnotatedMeta):
+    """This is a base class for a generic pipeline stage."""
+
     def produce(self) -> Iterable[TStageResult]:
         return []
 
@@ -33,7 +70,7 @@ class PipelineStage(Generic[TStageInput, TStageResult], metaclass=TypeAnnotatedM
         return
 
     def run(self, input: TStageInput) -> Iterable[TStageResult]:
-        produce_results = list(self.produce()) if self.produce else []
+        produce_results = list(self.produce()) if self.produce else [input]
         transform_results = list(self.transform(input)) if self.transform else []
         results = produce_results + transform_results if produce_results or transform_results else [input]
         if self.consume:
@@ -42,6 +79,23 @@ class PipelineStage(Generic[TStageInput, TStageResult], metaclass=TypeAnnotatedM
 
     def __call__(self, input: TStageInput) -> Iterable[TStageResult]:
         return self.run(input)
+
+    def __rshift__(self, other: "PipelineStage[TStageResult, TStageOther]") -> "PipelineStage[TStageInput, TStageOther]":
+        if self.TStageResult != other.TStageInput:
+            raise TypeError(
+                f"Output type of {self} ({self.TStageResult}) does not match input type of {other} ({other.TStageInput})."
+            )
+
+        class CombinedStage(PipelineStage[TStageInput, TStageOther]):
+            def transform(_self, input: TStageInput) -> Iterable[TStageOther]:
+                """Sequentially transform data from both stages."""
+                intermediate_results = self.run(input)
+                final_results = []
+                for intermediate in intermediate_results:
+                    final_results.extend(other.run(intermediate))
+                return final_results
+
+        return CombinedStage()
 
 
 @dataclass
