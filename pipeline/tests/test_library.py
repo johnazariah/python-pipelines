@@ -6,9 +6,11 @@ import sys
 import pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent.parent / "generics" / "generics"))
+from pipeline.pipeline import to_filename
 from pipeline.library import WriteJsonToFile, FormatPrintToConsole
 
 
+@to_filename(lambda _: "mock_file")
 @dataclass
 class MockInput:
     data: str
@@ -80,27 +82,27 @@ def test_format_print_to_console_all_formatters():
 
 def test_write_json_to_file_to_json():
     input_data = MockInput(data="test data")
-    stage = WriteJsonToFile(filename_extractor=lambda x: "mock_file.json")
+    stage = WriteJsonToFile(target_directory=".")
     expected_json = json.dumps({"data": "test data"}, indent=4)
     assert stage.to_json(input_data) == expected_json
 
 
 def test_write_json_to_file_to_json_empty_data():
     input_data = MockInput(data="")
-    stage = WriteJsonToFile(filename_extractor=lambda x: "mock_file.json")
+    stage = WriteJsonToFile(target_directory=".")
     expected_json = json.dumps({"data": ""}, indent=4)
     assert stage.to_json(input_data) == expected_json
 
 
 def test_write_json_to_file_to_json_special_characters():
     input_data = MockInput(data="test data with special characters: !@#$%^&*()")
-    stage = WriteJsonToFile(filename_extractor=lambda x: "mock_file.json")
+    stage = WriteJsonToFile(target_directory=".")
     expected_json = json.dumps({"data": "test data with special characters: !@#$%^&*()"}, indent=4)
     assert stage.to_json(input_data) == expected_json
 
 
 def test_write_json_to_file_to_json_unicode_characters():
     input_data = MockInput(data="test data with unicode: üñîçødë")
-    stage = WriteJsonToFile(filename_extractor=lambda x: "mock_file.json")
+    stage = WriteJsonToFile(target_directory=".")
     expected_json = json.dumps({"data": "test data with unicode: üñîçødë"}, indent=4)
     assert stage.to_json(input_data) == expected_json

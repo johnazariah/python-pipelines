@@ -3,6 +3,8 @@
 from collections.abc import Callable
 from dataclasses import dataclass, asdict
 import json
+import pathlib
+import os
 
 from .pipeline import TStageInput, TStageResult, PipelineStage
 
@@ -44,21 +46,38 @@ class FormatPrintToConsole(PipelineStage[TStageInput, TStageResult]):
 @dataclass
 class WriteJsonToFile(PipelineStage[TStageInput, TStageResult]):
     """
-    This pipeline stage writes the input to a JSON file.
+    This pipeline stage writes the input object to a JSON file.
+
+    Ensure that the input object is serializable to JSON.
+    Ensure that the input object is decorated with the `to_filename` decorator.
+
     Attributes:
-        filename_extractor (Callable[[TPipelineInput], str]):
-            [Mandatory] A function that extracts the full filename from the input.
+        target_directory (str):
+            [Mandatory] The directory where the JSON files will be written.
+
     Methods:
+        get_filename(input: TPipelineInput) -> str:
+            Returns the filename for the JSON file.
+            Override this method to customize the filename.
+            By default, if the input object has a `filename` attribute, it will be used.
         consume(input: TPipelineInput) -> None:
             Writes the input to a JSON file with the filename provided by the filename_extractor function.
     """
-    filename_extractor: Callable[[TStageInput], str]
+    target_directory: str
+
+    def __post_init__(self):
+        pathlib.Path(self.target_directory).mkdir(parents=True, exist_ok=True)
+
+    def get_filename(self, input: TStageInput) -> str:
+        if getattr(input, "filename", None) is not None:
+            return input.filename
+        else:
+            pass
 
     def to_json(self, input: TStageInput) -> str:
         return json.dumps(asdict(input), indent=4)
 
     def consume(self, input: TStageInput) -> None:
-        full_file_name = self.filename_extractor(input)
-
+        full_file_name = os.path.join(self.target_directory, self.get_filename(input))
         with open(full_file_name, "w", encoding='utf-8') as file:
             file.write(self.to_json(input))
