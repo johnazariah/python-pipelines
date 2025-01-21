@@ -69,3 +69,18 @@ clean-pipeline:
 # Clean build artifacts for both packages
 clean: clean-generics clean-pipeline
 	@echo "All build artifacts cleaned."
+
+
+release: release-patch
+
+release-patch: clean lint test build
+	bump2version patch  --commit --tag
+	git push && git push --tags
+
+release-minor: clean lint test build
+	bump2version minor  --commit --tag
+	git push && git push --tags
+
+release-major: clean lint test build
+	bump2version major  --commit --tag
+	git push && git push --tags
