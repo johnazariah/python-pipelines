@@ -74,13 +74,13 @@ clean: clean-generics clean-pipeline
 release: release-patch
 
 release-patch: clean lint test build
-	bump2version patch  --commit --tag
+	bump-my-version bump patch  --commit --tag
 	git push && git push --tags
 
 release-minor: clean lint test build
-	bump2version minor  --commit --tag
+	bump-my-version bump minor  --commit --tag
 	git push && git push --tags
 
 release-major: clean lint test build
-	bump2version major  --commit --tag
+	bump-my-version bump major  --commit --tag
 	git push && git push --tags
