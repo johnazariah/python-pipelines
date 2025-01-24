@@ -1,10 +1,11 @@
 
 
 from collections.abc import Callable
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 import json
 import pathlib
 import os
+import msgspec
 
 from .pipeline import TStageInput, TStageResult, PipelineStage
 
@@ -75,9 +76,9 @@ class WriteJsonToFile(PipelineStage[TStageInput, TStageResult]):
             pass
 
     def to_json(self, input: TStageInput) -> str:
-        return json.dumps(asdict(input), indent=4)
+        return json.dumps(msgspec.structs.asdict(input), default=str, sort_keys=True, indent=4).encode('utf-8')
 
     def consume(self, input: TStageInput) -> None:
-        full_file_name = os.path.join(self.target_directory, self.get_filename(input))
-        with open(full_file_name, "w", encoding='utf-8') as file:
+        full_file_name = os.path.join(self.target_directory, f"{self.get_filename(input)}.json")
+        with open(full_file_name, "wb") as file:
             file.write(self.to_json(input))
