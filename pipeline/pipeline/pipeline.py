@@ -86,8 +86,8 @@ class PipelineStage(Generic[TStageInput, TStageResult], metaclass=TypeAnnotatedM
                 f"Output type of {self} ({self.TStageResult}) does not match input type of {other} ({other.TStageInput})."
             )
 
-        class CombinedStage(PipelineStage[TStageInput, TStageOther]):
-            def transform(_self, input: TStageInput) -> Iterable[TStageOther]:
+        class CombinedStage(PipelineStage[self.TStageInput, other.TStageResult]):
+            def transform(_self, input: self.TStageInput) -> Iterable[TStageOther]:
                 """Sequentially transform data from both stages."""
                 intermediate_results = self.run(input)
                 final_results = []
