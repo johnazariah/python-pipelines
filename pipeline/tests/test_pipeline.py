@@ -390,3 +390,24 @@ def test_transform_then_produce():
     result = list(combined_stage(4))
 
     assert result == ["injected", "Processed: 8"]
+
+
+# Most common case: First stage has transform, second stage has transform
+def test_transform_then_transform():
+    stage1 = CustomStage[int, int](transform=lambda x: [x * 2])
+    stage2 = CustomStage[int, str](transform=lambda x: [f"Value: {x}"])
+
+    combined_stage = stage1 >> stage2
+    result = list(combined_stage(3))
+
+    assert result == ["Value: 6"]
+
+
+def test_composed_stage_in_pipeline():
+    stage1 = CustomStage[int, int](transform=lambda x: [x * 2])
+    stage2 = CustomStage[int, str](transform=lambda x: [f"Value: {x}"])
+
+    pipeline = Pipeline[int, str]([stage1 >> stage2])
+    result = pipeline(3)
+
+    assert result == ["Value: 6"]
