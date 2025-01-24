@@ -1,6 +1,7 @@
 
 from dataclasses import dataclass
 import json
+from msgspec import Struct
 
 import sys
 import pathlib
@@ -11,8 +12,7 @@ from pipeline.library import WriteJsonToFile, FormatPrintToConsole
 
 
 @to_filename(lambda _: "mock_file")
-@dataclass
-class MockInput:
+class MockInput(Struct):
     data: str
 
     def __str__(self):
@@ -83,26 +83,26 @@ def test_format_print_to_console_all_formatters():
 def test_write_json_to_file_to_json():
     input_data = MockInput(data="test data")
     stage = WriteJsonToFile(target_directory=".")
-    expected_json = json.dumps({"data": "test data"}, indent=4)
+    expected_json = json.dumps({"data": "test data"}, indent=4).encode("utf-8")
     assert stage.to_json(input_data) == expected_json
 
 
 def test_write_json_to_file_to_json_empty_data():
     input_data = MockInput(data="")
     stage = WriteJsonToFile(target_directory=".")
-    expected_json = json.dumps({"data": ""}, indent=4)
+    expected_json = json.dumps({"data": ""}, indent=4).encode("utf-8")
     assert stage.to_json(input_data) == expected_json
 
 
 def test_write_json_to_file_to_json_special_characters():
     input_data = MockInput(data="test data with special characters: !@#$%^&*()")
     stage = WriteJsonToFile(target_directory=".")
-    expected_json = json.dumps({"data": "test data with special characters: !@#$%^&*()"}, indent=4)
+    expected_json = json.dumps({"data": "test data with special characters: !@#$%^&*()"}, indent=4).encode("utf-8")
     assert stage.to_json(input_data) == expected_json
 
 
 def test_write_json_to_file_to_json_unicode_characters():
     input_data = MockInput(data="test data with unicode: üñîçødë")
     stage = WriteJsonToFile(target_directory=".")
-    expected_json = json.dumps({"data": "test data with unicode: üñîçødë"}, indent=4)
+    expected_json = json.dumps({"data": "test data with unicode: üñîçødë"}, indent=4).encode("utf-8")
     assert stage.to_json(input_data) == expected_json
