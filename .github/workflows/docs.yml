@@ -25,7 +25,12 @@ jobs:
 
       # ADJUST THIS: install all dependencies (including pdoc)
       - run: |
+          pip install pdoc
+
+      - run: |
           pip install -e generics
+
+      - run: |
           pip install -e pipeline
 
       # ADJUST THIS: build your documentation into docs/.
