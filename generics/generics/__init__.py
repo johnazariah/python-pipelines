@@ -1,3 +1,3 @@
-from .generics import TypeAnnotatedMeta
+# from .generics import TypeAnnotatedMeta
 
-__all__ = ["TypeAnnotatedMeta"]
+# __all__ = ["TypeAnnotatedMeta"]
