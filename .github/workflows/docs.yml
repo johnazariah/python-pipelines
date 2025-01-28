@@ -28,7 +28,13 @@ jobs:
           pip install pdoc
 
       - run: |
+          pip install -r generics/requirements.txt
+
+      - run: |
           pip install -e generics
+
+      - run: |
+          pip install -r pipeline/requirements.txt
 
       - run: |
           pip install -e pipeline
