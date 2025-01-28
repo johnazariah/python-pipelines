@@ -44,8 +44,8 @@ jobs:
       - run: |
           pdoc -o docs/ generics pipeline
 
-      - run: |
-          python docs/make.py
+      # - run: |
+      #     python docs/make.py
 
       - uses: actions/upload-pages-artifact@v3
         with:
