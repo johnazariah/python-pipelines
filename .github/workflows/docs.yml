@@ -36,7 +36,7 @@ jobs:
       # ADJUST THIS: build your documentation into docs/.
       # We use a custom build script for pdoc itself, ideally you just run `pdoc -o docs/ ...` here.
       - run: |
-          python -m pdoc --output-dir docs/ generics pipeline
+          pdoc -o docs/ generics pipeline
 
       - run: |
           python docs/make.py
