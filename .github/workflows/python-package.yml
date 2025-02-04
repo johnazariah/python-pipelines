@@ -97,7 +97,7 @@ jobs:
         repository-url: ${{ env.pypi-publish-url }}
         packages-dir: dist/ixp-generics-${{ env.python-version-to-publish }}
         skip-existing: true
-        
+
     - name: Publish ixp_pipeline 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
