@@ -2,7 +2,9 @@
 # Documentation for TypeAnnotatedMeta Class
 
 ## Overview
-This code defines a custom metaclass, `TypeAnnotatedMeta`, designed to handle type annotations in Python classes. It is particularly useful for creating and managing generic types with type parameters, ensuring their validity, and dynamically extending the functionality of classes.
+The `generics` module provides foundational classes and utilities to handle type annotations in Python classes.
+
+The module exports a single metaclass, `TypeAnnotatedMeta`, which captures type hints and makes them available at run time for inspection and validation.
 
 ---
 
@@ -102,6 +104,7 @@ class DynamicClass(Generic[T], metaclass=TypeAnnotatedMeta):
 
 Annotated = DynamicClass[int]
 print(Annotated)  # Output: DynamicClass[T=int]
+print(Annotated.T)  # Output: <class 'int'>
 ```
 
 ---

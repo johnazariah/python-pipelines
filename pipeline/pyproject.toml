@@ -3,9 +3,9 @@ requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ixp_pipeline"
+name = "pypeline"
 version = "0.4.2"
-description = "A Python library for building pipelines with ixp_generics"
+description = "A Python library for building pipelines with generyx"
 readme = "README.md"
 authors = [{ name = "John S. Azariah", email = "john.azariah@gmail.com" }]
 license = { file = "LICENSE" }
@@ -19,7 +19,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 requires-python = ">=3.12"
-dependencies = ["ixp_generics>=0.4.2"]
+dependencies = ["generyx>=0.4.2"]
 
 [tool.setuptools]
 packages = ["pipeline"]

@@ -54,14 +54,14 @@ jobs:
     - name: Upload ixp-generic artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ixp-generics-${{ matrix.python-version }}
+        name: generyx-${{ matrix.python-version }}
         path: |
           generics/dist/
 
-    - name: Upload ixp-pipeline artifacts
+    - name: Upload pypeline artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ixp-pipeline-${{ matrix.python-version }}
+        name: pypeline-${{ matrix.python-version }}
         path: |
           pipeline/dist/
 
@@ -76,7 +76,7 @@ jobs:
     env:
       name: pypi
       python-version-to-publish: "3.12"
-      url: https://test.pypi.org/p/ixp_pipeline
+      url: https://test.pypi.org/p/pypeline
       pypi-publish-url: https://test.pypi.org/legacy/
     steps:
     - uses: actions/checkout@v4
@@ -91,28 +91,28 @@ jobs:
         ls -l
         ls -l dist/
 
-    - name: Publish ixp_generics 📦 to PyPI
+    - name: Publish generyx 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         repository-url: ${{ env.pypi-publish-url }}
-        packages-dir: dist/ixp-generics-${{ env.python-version-to-publish }}
+        packages-dir: dist/generyx-${{ env.python-version-to-publish }}
         skip-existing: true
-        
-    - name: Publish ixp_pipeline 📦 to PyPI
+
+    - name: Publish pypeline 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         repository-url: ${{ env.pypi-publish-url }}
-        packages-dir: dist/ixp-pipeline-${{ env.python-version-to-publish }}
+        packages-dir: dist/pypeline-${{ env.python-version-to-publish }}
         skip-existing: true
 
     - name: Sign with Sigstore
       uses: sigstore/gh-action-sigstore-python@v3.0.0
       with:
         inputs: >-
-          ./dist/ixp-generics-${{ env.python-version-to-publish }}/*.tar.gz
-          ./dist/ixp-generics-${{ env.python-version-to-publish }}/*.whl
-          ./dist/ixp-pipeline-${{ env.python-version-to-publish }}/*.tar.gz
-          ./dist/ixp-pipeline-${{ env.python-version-to-publish }}/*.whl
+          ./dist/generyx-${{ env.python-version-to-publish }}/*.tar.gz
+          ./dist/generyx-${{ env.python-version-to-publish }}/*.whl
+          ./dist/pypeline-${{ env.python-version-to-publish }}/*.tar.gz
+          ./dist/pypeline-${{ env.python-version-to-publish }}/*.whl
     - name: Create GitHub Release
       env:
         GITHUB_TOKEN: ${{ github.token }}
@@ -130,5 +130,5 @@ jobs:
       # sigstore-produced signatures and certificates.
       run: >-
         gh release upload
-        "$GITHUB_REF_NAME" dist/ixp-generics-${{ env.python-version-to-publish }}/** dist/ixp-pipeline-${{ env.python-version-to-publish }}/**
+        "$GITHUB_REF_NAME" dist/generyx-${{ env.python-version-to-publish }}/** dist/pypeline-${{ env.python-version-to-publish }}/**
         --repo "$GITHUB_REPOSITORY"
